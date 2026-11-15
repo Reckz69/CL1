@@ -1,0 +1,129 @@
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Step 1: Import dataset and clean column names
+df = pd.read_csv("RealEstate_Prices.csv")
+
+df.columns = (
+    df.columns.str.strip()
+    .str.lower()
+    .str.replace(r"[^a-z0-9]+", "_", regex=True)
+    .str.strip("_")
+)
+
+print("First five records:")
+print(df.head())
+print("\nDataset shape:", df.shape)
+print("\nColumn names:", df.columns.tolist())
+print("\nMissing values:\n", df.isnull().sum())
+
+# Identify the sale price column
+price_options = ["sale_price", "price", "selling_price", "saleprice"]
+price_col = next((c for c in price_options if c in df.columns), None)
+
+# Step 2: Handle missing values
+for col in df.select_dtypes(include="number").columns:
+    df[col] = df[col].fillna(df[col].median())
+
+for col in df.select_dtypes(include="object").columns:
+    if df[col].notna().any():
+        df[col] = df[col].fillna(df[col].mode()[0])
+
+# Remove duplicate records
+df = df.drop_duplicates()
+
+# Standardize text values
+for col in df.select_dtypes(include="object").columns:
+    df[col] = df[col].str.strip()
+
+print("\nMissing values after cleaning:\n", df.isnull().sum())
+
+# Step 3: Optional data merging, if another dataset is available
+if os.path.exists("Neighborhood_Info.csv") and "neighborhood" in df.columns:
+    extra = pd.read_csv("Neighborhood_Info.csv")
+    extra.columns = (
+        extra.columns.str.strip().str.lower()
+        .str.replace(r"[^a-z0-9]+", "_", regex=True)
+        .str.strip("_")
+    )
+    if "neighborhood" in extra.columns:
+        df = df.merge(extra, on="neighborhood", how="left")
+        print("\nAdditional dataset merged successfully.")
+
+# Step 4: Filter and subset the data
+# Fallback is included because the uploaded notebook output uses
+# 'totalcharges' from the telecom churn dataset.
+if price_col is None:
+    fallback_options = ["totalcharges", "monthlycharges"]
+    price_col = next((c for c in fallback_options if c in df.columns), None)
+
+if price_col is not None:
+    print(f"Using '{price_col}' as the target numeric column.")
+    df[price_col] = pd.to_numeric(df[price_col], errors="coerce")
+    df = df.dropna(subset=[price_col])
+    df = df[df[price_col] > 0]
+    print("Records after filtering:", len(df))
+else:
+    raise ValueError("No suitable numeric sale-price column was found.")
+
+# Step 5: Identify and handle price outliers using IQR
+Q1 = df[price_col].quantile(0.25)
+Q3 = df[price_col].quantile(0.75)
+IQR = Q3 - Q1
+
+lower = max(0, Q1 - 1.5 * IQR)
+upper = Q3 + 1.5 * IQR
+
+outliers = ((df[price_col] < lower) | (df[price_col] > upper)).sum()
+print("Price outliers detected:", outliers)
+
+df[price_col] = df[price_col].clip(lower, upper)
+
+# Step 6: Aggregate average prices by neighborhood or property type
+if "neighborhood" in df.columns:
+    print("\nAverage price by neighborhood:")
+    print(
+        df.groupby("neighborhood")[price_col]
+        .mean().sort_values(ascending=False).head(10)
+    )
+
+if "property_type" in df.columns:
+    print("\nAverage price by property type:")
+    print(df.groupby("property_type")[price_col].mean())
+
+# Step 7: Visualize property prices
+plt.figure(figsize=(7, 4))
+plt.hist(df[price_col], bins=20, edgecolor="black")
+plt.title("Distribution of Real Estate Prices")
+plt.xlabel("Sale Price")
+plt.ylabel("Number of Properties")
+plt.tight_layout()
+plt.show()
+
+if "neighborhood" in df.columns:
+    (
+        df.groupby("neighborhood")[price_col].mean()
+        .sort_values(ascending=False).head(10)
+        .plot(kind="bar", figsize=(8, 4))
+    )
+    plt.title("Average Property Price by Neighborhood")
+    plt.xlabel("Neighborhood")
+    plt.ylabel("Average Sale Price")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+# Step 8: Encode categorical variables
+categorical_cols = df.select_dtypes(include="object").columns.tolist()
+df = pd.get_dummies(
+    df, columns=categorical_cols, drop_first=True, dtype=int
+)
+
+# Step 9: Export the cleaned dataset
+df.to_csv("Cleaned_RealEstate_Prices.csv", index=False)
+
+print("\nFinal dataset shape:", df.shape)
+print("Cleaned dataset saved as Cleaned_RealEstate_Prices.csv")
+print("\nFirst five cleaned records:")
+print(df.head())
