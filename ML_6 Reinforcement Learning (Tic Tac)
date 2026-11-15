@@ -1,0 +1,132 @@
+import numpy as np
+import random
+
+# Check whether a player has won
+def check_winner(board, player):
+    wins = [
+        (0, 1, 2), (3, 4, 5), (6, 7, 8),
+        (0, 3, 6), (1, 4, 7), (2, 5, 8),
+        (0, 4, 8), (2, 4, 6)
+    ]
+    return any(all(board[i] == player for i in line) for line in wins)
+
+# Get available moves
+def available_moves(board):
+    return [i for i in range(9) if board[i] == " "]
+
+# Display the board
+def show_board(board):
+    for i in range(0, 9, 3):
+        print(" | ".join(board[i:i + 3]))
+        if i < 6:
+            print("---------")
+
+# Q-learning parameters
+Q = {}
+alpha = 0.1
+gamma = 0.9
+epsilon = 1.0
+episodes = 20000
+
+# Initialize Q-values for a state
+def get_q(state):
+    if state not in Q:
+        Q[state] = np.zeros(9)
+    return Q[state]
+
+# Epsilon-greedy action selection
+def choose_action(board, explore=True):
+    state = "".join(board)
+    moves = available_moves(board)
+    if not moves:
+        return None
+
+    if explore and random.random() < epsilon:
+        return random.choice(moves)
+
+    q_values = get_q(state)
+    return max(moves, key=lambda action: q_values[action])
+
+# Train the agent against a random opponent
+for episode in range(episodes):
+    board = [" "] * 9
+    history = []
+    reward = 0
+
+    while True:
+        # Agent plays X
+        state = "".join(board)
+        action = choose_action(board)
+        history.append((state, action))
+        board[action] = "X"
+
+        if check_winner(board, "X"):
+            reward = 1
+            break
+        if not available_moves(board):
+            reward = 0.5
+            break
+
+        # Random opponent plays O
+        opponent_action = random.choice(available_moves(board))
+        board[opponent_action] = "O"
+
+        if check_winner(board, "O"):
+            reward = -1
+            break
+        if not available_moves(board):
+            reward = 0.5
+            break
+
+    # Update Q-values in reverse order
+    for state, action in reversed(history):
+        q_values = get_q(state)
+        next_max = np.max(q_values)
+        q_values[action] += alpha * (
+            reward + gamma * next_max - q_values[action]
+        )
+        reward *= gamma
+
+    epsilon = max(0.05, epsilon * 0.9998)
+
+print("Training completed.")
+print("Total states learned:", len(Q))
+
+# Test trained agent against a random opponent
+wins = 0
+losses = 0
+draws = 0
+test_games = 100
+
+for _ in range(test_games):
+    board = [" "] * 9
+
+    while True:
+        action = choose_action(board, explore=False)
+        board[action] = "X"
+
+        if check_winner(board, "X"):
+            wins += 1
+            break
+        if not available_moves(board):
+            draws += 1
+            break
+
+        action = random.choice(available_moves(board))
+        board[action] = "O"
+
+        if check_winner(board, "O"):
+            losses += 1
+            break
+        if not available_moves(board):
+            draws += 1
+            break
+
+print("\nTesting Results")
+print("Wins:", wins)
+print("Losses:", losses)
+print("Draws:", draws)
+print("Win Percentage:", round(wins / test_games * 100, 2), "%")
+
+print("\nSample Tic-Tac-Toe Board:")
+show_board(["X", "O", "X", " ", "O", " ", "X", " ", "O"])
