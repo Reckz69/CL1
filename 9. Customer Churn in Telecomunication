@@ -1,0 +1,96 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+# Step 1: Import the dataset
+df = pd.read_csv("Telecom_Customer_Churn.csv")
+
+# Step 2: Explore the dataset
+print("First five records:")
+print(df.head())
+
+print("\nDataset Shape:", df.shape)
+print("\nColumn Names:")
+print(df.columns.tolist())
+
+print("\nDataset Information:")
+df.info()
+
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+# Step 3: Handle missing values
+df = df.replace(r"^\s*$", pd.NA, regex=True)
+
+df["TotalCharges"] = pd.to_numeric(
+    df["TotalCharges"], errors="coerce"
+)
+
+for col in df.select_dtypes(include="number").columns:
+    df[col] = df[col].fillna(df[col].median())
+
+for col in df.select_dtypes(include="object").columns:
+    if df[col].notna().any():
+        df[col] = df[col].fillna(df[col].mode()[0])
+
+# Step 4: Remove duplicate records
+df = df.drop_duplicates()
+
+# Step 5: Standardize inconsistent text values
+for col in df.select_dtypes(include="object").columns:
+    df[col] = df[col].str.strip()
+
+# Step 6: Convert columns to correct data types
+df["tenure"] = df["tenure"].astype(int)
+df["MonthlyCharges"] = df["MonthlyCharges"].astype(float)
+df["TotalCharges"] = df["TotalCharges"].astype(float)
+
+print("\nMissing Values After Cleaning:")
+print(df.isnull().sum())
+
+# Step 7: Identify and handle outliers using IQR
+for col in ["MonthlyCharges", "TotalCharges"]:
+    Q1 = df[col].quantile(0.25)
+    Q3 = df[col].quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower = Q1 - 1.5 * IQR
+    upper = Q3 + 1.5 * IQR
+
+    outliers = df[(df[col] < lower) | (df[col] > upper)]
+    print("\nOutliers in", col, ":", len(outliers))
+
+    df[col] = df[col].clip(lower, upper)
+
+# Step 8: Feature engineering
+df["TenureGroup"] = pd.cut(
+    df["tenure"],
+    bins=[-1, 12, 24, 48, float("inf")],
+    labels=["0-12", "13-24", "25-48", "49+"]
+)
+
+# Step 9: Visualize the data
+plt.figure(figsize=(7, 4))
+plt.hist(df["MonthlyCharges"], bins=20, edgecolor="black")
+plt.title("Distribution of Monthly Charges")
+plt.xlabel("Monthly Charges")
+plt.ylabel("Number of Customers")
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(7, 4))
+plt.boxplot(df["MonthlyCharges"])
+plt.title("Box Plot of Monthly Charges")
+plt.ylabel("Monthly Charges")
+plt.tight_layout()
+plt.show()
+
+print("\nChurn Distribution:")
+print(df["Churn"].value_counts())
+
+df["Churn"].value_counts().plot(kind="bar")
+plt.title("Customer Churn Distribution")
+plt.xlabel("Churn (No / Yes)")
+plt.ylabel("Number of Customers")
+plt.tight_layout()
