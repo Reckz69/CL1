@@ -1,0 +1,102 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Delhi AQI dataset
+dataset_url = (
+    "https://raw.githubusercontent.com/cp099/India-Air-Quality-Dataset/"
+    "main/Delhi_AQI_Dataset.csv"
+)
+
+# Step 1: Load dataset directly from URL
+data = pd.read_csv(dataset_url)
+
+print("Dataset loaded successfully!")
+print("Dataset link:", dataset_url)
+
+# Step 2: Explore the dataset
+print("\nFirst five records:")
+print(data.head())
+
+print("\nDataset shape:", data.shape)
+print("\nDataset information:")
+data.info()
+
+print("\nStatistical summary:")
+print(data.describe())
+
+print("\nMissing values:")
+print(data.isnull().sum())
+
+# Step 3: Prepare relevant variables
+data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+
+numeric_cols = ["AQI", "PM2.5", "PM10", "CO"]
+for col in numeric_cols:
+    data[col] = pd.to_numeric(data[col], errors="coerce")
+
+data = data.dropna(subset=["Date", "AQI"])
+data = data.sort_values("Date")
+
+# Step 4: Line plot of AQI over time
+plt.figure(figsize=(12, 5))
+plt.plot(data["Date"], data["AQI"], label="AQI")
+plt.title("AQI Trend Over Time - Delhi")
+plt.xlabel("Date")
+plt.ylabel("AQI")
+plt.legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# Step 5: Plot pollutant levels over time
+for col in ["PM2.5", "PM10", "CO"]:
+    plt.figure(figsize=(12, 4))
+    plt.plot(data["Date"], data[col], label=col)
+    plt.title(col + " Levels Over Time")
+    plt.xlabel("Date")
+    plt.ylabel(col + " Level")
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+# Step 6: Bar plot comparing AQI by month
+data["Month"] = data["Date"].dt.to_period("M").astype(str)
+monthly_aqi = data.groupby("Month")["AQI"].mean()
+
+plt.figure(figsize=(10, 5))
+monthly_aqi.plot(kind="bar")
+plt.title("Average Monthly AQI - Delhi")
+plt.xlabel("Month")
+plt.ylabel("Average AQI")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# Step 7: Box plot of AQI distribution
+plt.figure(figsize=(7, 4))
+plt.boxplot(data["AQI"].dropna())
+plt.title("AQI Distribution")
+plt.ylabel("AQI")
+plt.tight_layout()
+plt.show()
+
+# Step 8: Scatter plots of AQI against pollutant levels
+for col in ["PM2.5", "PM10", "CO"]:
+    plot_data = data.dropna(subset=[col, "AQI"])
+
+    plt.figure(figsize=(7, 4))
+    plt.scatter(plot_data[col], plot_data["AQI"])
+    plt.title("AQI vs " + col)
+    plt.xlabel(col)
+    plt.ylabel("AQI")
+    plt.tight_layout()
+    plt.show()
+
+# Step 9: Summary and customized output
+print("\nAQI Analysis Summary")
+print("Average AQI:", round(data["AQI"].mean(), 2))
+print("Maximum AQI:", data["AQI"].max())
+print("Minimum AQI:", data["AQI"].min())
+
+print("\nVisualization completed successfully.")
