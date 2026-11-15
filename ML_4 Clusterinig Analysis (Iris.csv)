@@ -1,0 +1,68 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+
+# Load Iris.csv
+data = pd.read_csv("Iris.csv")
+print("First five rows:")
+print(data.head())
+print("\nDataset information:")
+data.info()
+print("\nStatistical description:")
+print(data.describe(include="all"))
+print("\nMissing values:")
+print(data.isnull().sum())
+
+# Select numerical features and remove missing rows
+X = data.select_dtypes(include="number").dropna()
+
+# Scale the features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Elbow method to inspect possible cluster counts
+wcss = []
+for k in range(1, 11):
+    model = KMeans(n_clusters=k, init="k-means++", random_state=42, n_init=10)
+    model.fit(X_scaled)
+    wcss.append(model.inertia_)
+
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, 11), wcss, marker="o")
+plt.title("Elbow Method")
+plt.xlabel("Number of Clusters (K)")
+plt.ylabel("WCSS")
+plt.tight_layout()
+plt.show()
+
+# Apply K-Means with three clusters
+kmeans = KMeans(n_clusters=3, init="k-means++", random_state=42, n_init=10)
+y_kmeans = kmeans.fit_predict(X_scaled)
+
+print("\nCluster labels:")
+print(y_kmeans)
+print("\nNumber of data points in each cluster:")
+print(pd.Series(y_kmeans).value_counts().sort_index())
+
+# Plot clusters using the first two scaled features
+plt.figure(figsize=(8, 5))
+for cluster in range(3):
+    plt.scatter(
+        X_scaled[y_kmeans == cluster, 0],
+        X_scaled[y_kmeans == cluster, 1],
+        s=50, label=f"Cluster {cluster + 1}"
+    )
+
+plt.scatter(
+    kmeans.cluster_centers_[:, 0],
+    kmeans.cluster_centers_[:, 1],
+    s=150, marker="X", label="Centroids"
+)
+plt.title("K-Means Clustering on Iris Dataset")
+plt.xlabel("Feature 1 (Scaled)")
+plt.ylabel("Feature 2 (Scaled)")
+plt.legend()
+plt.tight_layout()
+plt.show()
