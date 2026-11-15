@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn import datasets
+from sklearn.preprocessing import scale
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+# Load the handwritten digits dataset
+digits = datasets.load_digits()
+X = digits.data
+y = digits.target
+
+numbers = pd.DataFrame(X)
+numbers["label"] = y
+
+# Explore the data
+print("First five rows:")
+print(numbers.head())
+print("\nDataset information:")
+numbers.info()
+print("\nStatistical description:")
+print(numbers.describe())
+print("\nMissing values:")
+print(numbers.isnull().sum())
+print("\nUnique digit labels:", np.unique(numbers["label"]))
+print("\nLabel counts:")
+print(numbers["label"].value_counts().sort_index())
+
+# Visualize label distribution
+sns.countplot(data=numbers, x="label", hue="label", legend=False)
+plt.title("Distribution of Digit Labels")
+plt.tight_layout()
+plt.show()
+
+print("\nAverage feature values:")
+print(round(numbers.drop("label", axis=1).mean(), 2))
+
+# Separate features and labels, then scale
+X = numbers.drop("label", axis=1)
+y = numbers["label"]
+X_scaled = scale(X)
+
+# Match the split shown in the assignment (20% train, 80% test)
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, train_size=0.2, test_size=0.8,
+    random_state=0, stratify=y
+)
+
+# Train linear SVM
+model_linear = SVC(kernel="linear")
+model_linear.fit(X_train, y_train)
+
+# Predict and evaluate
+y_pred = model_linear.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+print("\nSVM Model Accuracy:", round(accuracy * 100, 2), "%")
