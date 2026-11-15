@@ -1,0 +1,106 @@
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Step 1: Enter API key and city
+api_key = input("Enter your OpenWeatherMap API key: ")
+city = input("Enter city name: ")
+
+# Step 2: Retrieve weather data from API
+url = "https://api.openweathermap.org/data/2.5/forecast"
+params = {
+    "q": city,
+    "appid": api_key,
+    "units": "metric"
+}
+
+response = requests.get(url, params=params)
+data = response.json()
+
+# Check for API errors
+if response.status_code != 200:
+    print("Error:", data.get("message", "Unable to retrieve data"))
+else:
+    # Step 3: Extract relevant weather attributes
+    records = []
+
+    for item in data["list"]:
+        records.append({
+            "Date": item["dt_txt"],
+            "Temperature": item["main"]["temp"],
+            "Humidity": item["main"]["humidity"],
+            "WindSpeed": item["wind"]["speed"],
+            "Precipitation": item.get("rain", {}).get("3h", 0)
+        })
+
+    df = pd.DataFrame(records)
+
+    # Step 4: Clean and preprocess data
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.drop_duplicates()
+    df = df.dropna()
+
+    print("\nWeather Data:")
+    print(df.head())
+
+    print("\nDataset Information:")
+    df.info()
+
+    # Step 5: Calculate weather statistics
+    print("\nWeather Statistics:")
+    print(df[["Temperature", "Humidity",
+              "WindSpeed", "Precipitation"]].describe())
+
+    print("\nAverage Temperature:",
+          round(df["Temperature"].mean(), 2), "°C")
+    print("Maximum Temperature:", df["Temperature"].max(), "°C")
+    print("Minimum Temperature:", df["Temperature"].min(), "°C")
+
+    # Step 6: Aggregate data by day
+    df["Day"] = df["Date"].dt.date
+
+    daily = df.groupby("Day")[[
+        "Temperature", "Humidity", "WindSpeed", "Precipitation"
+    ]].mean()
+
+    print("\nDaily Weather Summary:")
+    print(daily)
+
+    # Step 7: Visualize temperature over time
+    plt.figure(figsize=(10, 4))
+    plt.plot(df["Date"], df["Temperature"], marker="o")
+    plt.title("Temperature Changes Over Time")
+    plt.xlabel("Date and Time")
+    plt.ylabel("Temperature (°C)")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+    # Visualize daily average temperature
+    daily["Temperature"].plot(kind="bar", figsize=(8, 4))
+    plt.title("Daily Average Temperature")
+    plt.xlabel("Day")
+    plt.ylabel("Temperature (°C)")
+    plt.tight_layout()
+    plt.show()
+
+    # Step 8: Relationship between temperature and humidity
+    plt.figure(figsize=(6, 4))
+    plt.scatter(df["Temperature"], df["Humidity"])
+    plt.title("Temperature vs Humidity")
+    plt.xlabel("Temperature (°C)")
+    plt.ylabel("Humidity (%)")
+    plt.tight_layout()
+    plt.show()
+
+    # Correlation heatmap
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(
+        df[["Temperature", "Humidity", "WindSpeed", "Precipitation"]].corr(),
+        annot=True,
+        cmap="coolwarm"
+    )
+    plt.title("Weather Attribute Correlation")
+    plt.tight_layout()
+    plt.show()
