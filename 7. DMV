@@ -1,0 +1,93 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Step 1: Create sample sales data in three file formats
+csv_data = pd.DataFrame({
+    "OrderID": [101, 102],
+    "Product": ["Laptop", "Phone"],
+    "Category": ["Electronics", "Electronics"],
+    "Region": ["North", "South"],
+    "Quantity": [2, 3],
+    "UnitPrice": [50000, 20000]
+})
+
+excel_data = pd.DataFrame({
+    "OrderID": [103, 104],
+    "Product": ["Chair", "Desk"],
+    "Category": ["Furniture", "Furniture"],
+    "Region": ["West", "East"],
+    "Quantity": [5, 2],
+    "UnitPrice": [3000, 7000]
+})
+
+json_data = pd.DataFrame({
+    "OrderID": [105, 106],
+    "Product": ["Phone", "Laptop"],
+    "Category": ["Electronics", "Electronics"],
+    "Region": ["North", "West"],
+    "Quantity": [1, 1],
+    "UnitPrice": [20000, 50000]
+})
+
+# Save data in different file formats
+csv_data.to_csv("sales.csv", index=False)
+excel_data.to_excel("sales.xlsx", index=False)
+json_data.to_json("sales.json", orient="records")
+
+# Step 2: Load data from all three formats
+df1 = pd.read_csv("sales.csv")
+df2 = pd.read_excel("sales.xlsx")
+df3 = pd.read_json("sales.json")
+
+print("CSV Data:")
+print(df1)
+
+print("\nExcel Data:")
+print(df2)
+
+print("\nJSON Data:")
+print(df3)
+
+# Step 3: Explore and clean the data
+df = pd.concat([df1, df2, df3], ignore_index=True)
+
+print("\nDataset Shape:", df.shape)
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+df = df.drop_duplicates()
+df = df.dropna()
+
+# Step 4: Transform data
+df["Sales"] = df["Quantity"] * df["UnitPrice"]
+
+print("\nCombined and Cleaned Data:")
+print(df)
+
+# Step 5: Perform sales analysis
+print("\nDescriptive Statistics:")
+print(df["Sales"].describe())
+
+print("\nTotal Sales:", df["Sales"].sum())
+print("Average Order Value:", round(df["Sales"].mean(), 2))
+
+print("\nSales by Category:")
+print(df.groupby("Category")["Sales"].sum())
+
+print("\nSales by Region:")
+print(df.groupby("Region")["Sales"].sum())
+
+# Step 6: Visualize sales data
+category_sales = df.groupby("Category")["Sales"].sum()
+
+category_sales.plot(kind="bar", title="Sales by Category")
+plt.xlabel("Category")
+plt.ylabel("Total Sales")
+plt.tight_layout()
+plt.show()
+
+category_sales.plot(kind="pie", autopct="%1.1f%%",
+                    title="Sales Distribution by Category")
+plt.ylabel("")
+plt.tight_layout()
+plt.show()
